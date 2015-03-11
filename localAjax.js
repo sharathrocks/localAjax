@@ -4,9 +4,19 @@
  * The xhr-overriding logic used in this library is inspired from the jQuery mockjax plugin which is a Ajax mock plugin used for testing applications when the backend is not fully ready.
  */
 
-(function($){
+(function(root, name, definition){
+    if ( typeof define === 'function' && define.amd ) { // AMD definition
+        define(name, ['jquery'], definition);
+    } else { // traditional jQuery binding in browser
+        var $ = root.jQuery || root.$;
+        if ($) {
+                $[name] = definition(jQuery);
+        }
+    }
+}(window, 'localAjax', function($){
     var jQAjax = $.ajax;
     var mockAjaxCallsList = {};
+    var settings = {};
     window.console = window.console || {
         log: function(){},
         error: function(){},
@@ -34,7 +44,7 @@
 
     // Construct a mocked XHR Object
     function xhr(mockHandler, requestSettings) {
-        mockHandler = $.extend(true, {}, $.localAjax.settings, mockHandler);
+        mockHandler = $.extend(true, {}, localAjax.settings, mockHandler);
         requestSettings.headers = requestSettings.headers || {};
         mockHandler.headers = mockHandler.headers || {};
         // Return a custom jqxhr object which is a superset of the native xhr.
@@ -104,7 +114,7 @@
         }
 
         // Fire a regular ajax call for calls when we're not in mock mode
-        if(true ===$.localAjax.settings.mockMode || true === ajaxOptions.mockMode) {
+        if(true ===localAjax.settings.mockMode || true === ajaxOptions.mockMode) {
             // If either the global setting for mock is true or if the local ajax call flag for mockmode is true, fake the request
             console.log("Intercepted call - route: "+ajaxOptions.url);
             var reqSettings = $.extend({}, $.ajaxSettings, ajaxOptions);
@@ -125,31 +135,31 @@
         }
     }
     // Extend jQuery Object to intercept all AJAX calls.
-    $.extend($, {ajax: ajaxInterceptor});
-
     // localAjax API on jQuery.
     // Takes in a settings object and adds the keys(url for mock) and the corresponding responses to the internal list of mock url's
-    $.localAjax = function(settings) {
+    var localAjax = function(settings) {
         $.extend(mockAjaxCallsList, settings);
     };
-
+    localAjax.ajaxInterceptor = ajaxInterceptor;
     // Settings object for the plugin.
-    $.localAjax.settings = {
+    localAjax.settings = {
         mockMode: false
     };
 
     // Remove all mocks and reset to initial state.
-    $.localAjax.reset = function() {
+    localAjax.reset = function() {
         mockAjaxCallsList = {};
     };
 
     // Remove mocks present as part of settings object, keeping the other mocks intact.
-    $.localAjax.removeMock = function(settings) {
+    localAjax.removeMock = function(settings) {
         for(var i in settings) {
             if(i in mockAjaxCallsList && settings.hasOwnProperty(i)) {
                 delete mockAjaxCallsList[i];
             }
         }
-    }
+    };
+    $.extend($, {ajax: localAjax.ajaxInterceptor});
+    return localAjax;
 
-})(jQuery);
+}));
